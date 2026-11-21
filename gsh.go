@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"container/list"
 	"errors"
 	"fmt"
 	"os"
@@ -12,24 +13,43 @@ import (
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 
+	hostname, err := os.Hostname()
+	history := list.New()
+
 	for {
-		fmt.Print("gsh> ")
+		dir, errDir := os.Getwd()
+		if err == nil && errDir == nil {
+			if len(dir) > 20 {
+				splittedDir := strings.Split(dir, "/")
+				fmt.Print("👀 <" + hostname + "> '" + "../" + splittedDir[len(splittedDir)-1] + "' ")
+			} else {
+				fmt.Print("👀 <" + hostname + "> '" + dir + "' ")
+			}
+		} else {
+			fmt.Print("👀 gsh ")
+		}
 		// Read the keyboard input.
 		input, err := reader.ReadString('\n')
+
+		// Read up or down keys
+		// input, err = reader.ReadString("^[[A")
+
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 
 		// handle exec
-		if err = execInput(input); err != nil {
+		if err = execInput(input, history); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 	}
 }
 
-func execInput(input string) error {
+func execInput(input string, history *list.List) error {
 	// remove the new line character
 	input = strings.TrimSuffix(input, "\n")
+
+	history.PushFront(input)
 
 	// split the input to separate the command and args
 	args := strings.Split(input, " ")
@@ -41,6 +61,13 @@ func execInput(input string) error {
 		}
 
 		return os.Chdir(args[1])
+	case "history":
+		head := history.Front()
+		for head != nil {
+			fmt.Println(head.Value)
+			head = head.Next()
+		}
+		return nil;
 	case "exit":
 		fmt.Println("Seeya 👋")
 		os.Exit(0)
